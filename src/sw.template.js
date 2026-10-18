@@ -6,7 +6,8 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches
       .open(CACHE)
-      .then((cache) => cache.addAll(PRECACHE))
+      // Bypass the HTTP cache (GitHub Pages sends max-age=600) so a new worker never precaches a stale page.
+      .then((cache) => cache.addAll(PRECACHE.map((url) => new Request(url, { cache: 'reload' }))))
       .then(() => self.skipWaiting()),
   );
 });
@@ -23,10 +24,28 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return;
+  if (request.mode === 'navigate') {
+    event.respondWith(networkFirstPage(request));
+    return;
+  }
+  // Built assets have hashed names, so cached copies never go stale.
   event.respondWith(
-    (async () => {
-      const key = request.mode === 'navigate' ? self.registration.scope : request;
-      return (await caches.match(key, { ignoreSearch: true })) ?? fetch(request);
-    })(),
+    (async () => (await caches.match(request, { ignoreSearch: true })) ?? fetch(request))(),
   );
+});
+
+// Always try for the latest page so deploys show up on the next load; use the cached page offline.
+async function networkFirstPage(request) {
+  const key = self.registration.scope;
+  try {
+    const response = await fetch(request.url, { cache: 'no-cache' });
+    if (response.ok) {
+      const cache = await caches.open(CACHE);
+      await cache.put(key, response.clone());
+    }
+    return response;
+  } catch {
+    return (await caches.match(key)) ?? Response.error();
+  }
+}
 });

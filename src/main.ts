@@ -227,7 +227,9 @@ document.addEventListener('visibilitychange', async () => {
 setDelay(Number(localStorage.getItem(DELAY_STORAGE_KEY)) || 5);
 
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
-  navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(console.error);
+  navigator.serviceWorker
+    .register(`${import.meta.env.BASE_URL}sw.js`, { updateViaCache: 'none' })
+    .catch(console.error);
 }
 
 if (!window.isSecureContext) {
