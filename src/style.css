@@ -1,0 +1,192 @@
+:root {
+  color-scheme: dark;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  background: #000;
+  color: #fff;
+  --panel: rgba(20, 20, 20, 0.72);
+  --accent: #4da3ff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+  height: 100dvh;
+}
+
+#output {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+}
+
+#live {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 12px);
+  right: 12px;
+  width: min(28vw, 180px);
+  border-radius: 8px;
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  background: #111;
+}
+
+/* Keep the element rendered so requestVideoFrameCallback keeps firing. */
+#live.live-hidden {
+  width: 2px;
+  height: 2px;
+  opacity: 0.01;
+  border: 0;
+  pointer-events: none;
+}
+
+.mirrored #output,
+.mirrored #live {
+  transform: scaleX(-1);
+}
+
+#overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+#overlay-text {
+  padding: 12px 20px;
+  border-radius: 12px;
+  background: var(--panel);
+  font-size: 1.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+#intro {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 24px;
+  text-align: center;
+}
+
+#intro h1 {
+  margin: 0;
+  font-size: 2rem;
+}
+
+#intro p {
+  margin: 0;
+  max-width: 32rem;
+  color: #ccc;
+  line-height: 1.4;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  padding: 8px 14px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:disabled {
+  opacity: 0.5;
+}
+
+button[aria-pressed='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #000;
+}
+
+#start {
+  font-size: 1.25rem;
+  padding: 14px 28px;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #000;
+}
+
+#controls {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 16px calc(env(safe-area-inset-bottom) + 12px);
+  background: var(--panel);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: transform 0.2s ease;
+}
+
+.controls-hidden #controls {
+  transform: translateY(100%);
+}
+
+.delay-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.delay-row input {
+  flex: 1;
+  accent-color: var(--accent);
+}
+
+#delay-value {
+  min-width: 3.5em;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.presets,
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+#stats {
+  font-size: 0.75rem;
+  color: #aaa;
+  font-variant-numeric: tabular-nums;
+}
+
+#error {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 12px);
+  left: 12px;
+  right: 12px;
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(180, 30, 30, 0.9);
+}

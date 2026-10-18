@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Delay" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <title>Video Delay</title>
+  </head>
+  <body>
+    <main id="app">
+      <canvas id="output" aria-label="Delayed camera view"></canvas>
+      <video id="live" playsinline muted autoplay aria-label="Live camera preview"></video>
+
+      <div id="overlay" hidden>
+        <div id="overlay-text"></div>
+      </div>
+
+      <section id="intro">
+        <h1>Video Delay</h1>
+        <p>Watch yourself on a delay of up to 2 minutes. Prop up your phone, hit start, and review your form.</p>
+        <button id="start" type="button">Start camera</button>
+      </section>
+
+      <section id="controls" hidden>
+        <div class="delay-row">
+          <label for="delay">Delay</label>
+          <input id="delay" type="range" min="1" max="120" step="1" value="5" />
+          <output id="delay-value" for="delay">5s</output>
+        </div>
+        <div class="presets">
+          <button type="button" data-delay="5">5s</button>
+          <button type="button" data-delay="10">10s</button>
+          <button type="button" data-delay="30">30s</button>
+          <button type="button" data-delay="60">1m</button>
+          <button type="button" data-delay="90">1:30</button>
+          <button type="button" data-delay="120">2m</button>
+        </div>
+        <div class="actions">
+          <button id="flip" type="button">Flip camera</button>
+          <button id="mirror" type="button" aria-pressed="false">Mirror</button>
+          <button id="toggle-live" type="button" aria-pressed="true">Live view</button>
+        </div>
+        <div id="stats"></div>
+      </section>
+
+      <p id="error" role="alert" hidden></p>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
