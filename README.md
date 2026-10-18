@@ -34,4 +34,6 @@ The dev server uses a self-signed certificate, since phones only allow camera ac
 
 ## Deployment
 
-Pushing to `main` triggers [the GitHub Actions workflow](.github/workflows/deploy.yml), which builds the app and publishes it to GitHub Pages. The build also generates a service worker that precaches all assets for offline use.
+Pushing to `main` triggers [the GitHub Actions workflow](.github/workflows/deploy.yml), which builds the app and publishes it to GitHub Pages. The repo's Pages source must be set to **GitHub Actions** (not "Deploy from a branch"), otherwise the unbuilt source is published. The build also generates a service worker that precaches all assets for offline use.
+
+The short commit hash of the running build is shown on the start screen and under the controls, so you can confirm a deploy has reached your device.

@@ -185,10 +185,21 @@ button[aria-pressed='true'] {
   gap: 8px;
 }
 
-#stats {
+.status-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+#stats,
+.version {
   font-size: 0.75rem;
   color: #aaa;
   font-variant-numeric: tabular-nums;
+}
+
+#intro .version {
+  color: #777;
 }
 
 #error {

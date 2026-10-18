@@ -28,6 +28,7 @@
         <h1>Video Delay</h1>
         <p>Watch yourself on a delay of up to 2 minutes. Prop up your phone, hit start, and review your form.</p>
         <button id="start" type="button">Start camera</button>
+        <p class="version">Build %APP_VERSION%</p>
       </section>
 
       <section id="controls" hidden>
@@ -50,7 +51,10 @@
           <button id="toggle-live" type="button" aria-pressed="true">Live view</button>
           <button id="fullscreen" type="button" hidden>Fullscreen</button>
         </div>
-        <div id="stats"></div>
+        <div class="status-row">
+          <div id="stats"></div>
+          <div class="version">Build %APP_VERSION%</div>
+        </div>
       </section>
 
       <p id="error" role="alert" hidden></p>

@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process';
 import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
@@ -27,8 +28,26 @@ function serviceWorker(): Plugin {
   };
 }
 
+function commitHash(): string {
+  if (process.env.GITHUB_SHA) return process.env.GITHUB_SHA.slice(0, 7);
+  try {
+    return execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();
+  } catch {
+    return 'dev';
+  }
+}
+
+/** Replaces %APP_VERSION% in index.html so you can tell which build is running. */
+function appVersion(): Plugin {
+  const version = commitHash();
+  return {
+    name: 'app-version',
+    transformIndexHtml: (html) => html.replaceAll('%APP_VERSION%', version),
+  };
+}
+
 export default defineConfig({
   base: '/video-delay-online/',
   // Phones only allow camera access over HTTPS, so the LAN dev server needs a cert.
-  plugins: [basicSsl(), serviceWorker()],
+  plugins: [basicSsl(), serviceWorker(), appVersion()],
 });
