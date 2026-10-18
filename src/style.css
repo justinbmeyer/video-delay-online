@@ -57,7 +57,18 @@ body {
   pointer-events: none;
 }
 
-.mirrored #output,
+/* Rendered (not display: none) so Safari keeps it playing and lets it enter fullscreen. */
+#fullscreen-video {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 2px;
+  height: 2px;
+  opacity: 0.01;
+  pointer-events: none;
+}
+
+/* The delayed canvas is mirrored when drawn, so only the live preview needs CSS. */
 .mirrored #live {
   transform: scaleX(-1);
 }

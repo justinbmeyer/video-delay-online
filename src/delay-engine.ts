@@ -2,6 +2,8 @@ export const MAX_DELAY_MS = 120_000;
 const RETAIN_MARGIN_MS = 5_000;
 const KEYFRAME_INTERVAL_MS = 2_000;
 const MAX_ENCODE_QUEUE = 2;
+const FALLBACK_INTERVAL_MS = 1000 / 30;
+const STALL_MS = 150;
 // Ordered by preference; H.264 is hardware-encoded on iPhones.
 const CODECS = ['avc1.42E01F', 'avc1.4D401F', 'avc1.42E028', 'avc1.640028', 'vp8', 'vp09.00.10.08'];
 
@@ -26,9 +28,14 @@ export interface DelayStatus {
  */
 export class DelayEngine {
   onError: (error: Error) => void = () => {};
+  /** Draws frames flipped horizontally. Done in the canvas (not CSS) so captureStream() output is mirrored too. */
+  mirrored = false;
 
   private _delayMs = 5_000;
   private running = false;
+  private fallbackTimer = 0;
+  private lastVideoFrameAt = 0;
+  private lastTickAt = 0;
   private readonly ctx: CanvasRenderingContext2D;
 
   private buffer: BufferedChunk[] = [];
@@ -70,10 +77,12 @@ export class DelayEngine {
     this.running = true;
     this.video.requestVideoFrameCallback(this.onVideoFrame);
     requestAnimationFrame(this.tick);
+    this.fallbackTimer = window.setInterval(this.fallbackTick, FALLBACK_INTERVAL_MS);
   }
 
   stop(): void {
     this.running = false;
+    clearInterval(this.fallbackTimer);
     if (this.encoder?.state !== 'closed') this.encoder?.close();
     if (this.decoder?.state !== 'closed') this.decoder?.close();
     this.encoder = this.decoder = null;
@@ -102,7 +111,23 @@ export class DelayEngine {
   private onVideoFrame = (): void => {
     if (!this.running) return;
     this.video.requestVideoFrameCallback(this.onVideoFrame);
+    this.lastVideoFrameAt = performance.now();
+    this.capture();
+  };
 
+  /**
+   * requestVideoFrameCallback and requestAnimationFrame can stop firing while iOS
+   * shows a <video> in its native fullscreen player, so keep capturing and
+   * playing back on a timer whenever they stall.
+   */
+  private fallbackTick = (): void => {
+    if (!this.running) return;
+    const now = performance.now();
+    if (now - this.lastVideoFrameAt > STALL_MS) this.capture();
+    if (now - this.lastTickAt > STALL_MS) this.step();
+  };
+
+  private capture(): void {
     const { videoWidth: width, videoHeight: height } = this.video;
     if (!width || !height) return;
 
@@ -132,7 +157,7 @@ export class DelayEngine {
     } finally {
       frame.close();
     }
-  };
+  }
 
   private async configureEncoder(width: number, height: number): Promise<void> {
     this.configuring = true;
@@ -167,7 +192,11 @@ export class DelayEngine {
   private tick = (): void => {
     if (!this.running) return;
     requestAnimationFrame(this.tick);
+    this.lastTickAt = performance.now();
+    this.step();
+  };
 
+  private step(): void {
     const now = performance.now();
     const targetUs = (now - this._delayMs) * 1000;
 
@@ -187,7 +216,7 @@ export class DelayEngine {
     for (; this.next < end; this.next++) this.feed(this.buffer[this.next]);
 
     this.evict(now);
-  };
+  }
 
   private seek(targetUs: number): void {
     this.needsSeek = false;
@@ -246,7 +275,9 @@ export class DelayEngine {
       this.canvas.width = w;
       this.canvas.height = h;
     }
+    if (this.mirrored) this.ctx.setTransform(-1, 0, 0, 1, w, 0);
     this.ctx.drawImage(frame, 0, 0, w, h);
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     frame.close();
   };
 

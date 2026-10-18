@@ -9,6 +9,7 @@ A web app that shows your camera feed on a delay of up to 2 minutes, so you can 
 - Adjustable delay from 1 second to 2 minutes, with presets (5s, 10s, 30s, 1m, 1:30, 2m)
 - Front/back camera flip and mirror mode
 - Optional live preview alongside the delayed view
+- Fullscreen button (on iPhone, the delayed canvas is streamed into a `<video>` so Safari's native video fullscreen can show it)
 - Installable as a PWA with offline support
 - Everything runs locally in the browser; no video is uploaded anywhere
 

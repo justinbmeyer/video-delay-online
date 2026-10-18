@@ -18,6 +18,8 @@ const delayValue = byId<HTMLOutputElement>('delay-value');
 const flipButton = byId<HTMLButtonElement>('flip');
 const mirrorButton = byId<HTMLButtonElement>('mirror');
 const liveButton = byId<HTMLButtonElement>('toggle-live');
+const fullscreenButton = byId<HTMLButtonElement>('fullscreen');
+const fullscreenVideo = byId<HTMLVideoElement>('fullscreen-video');
 const stats = byId<HTMLDivElement>('stats');
 const errorEl = byId<HTMLParagraphElement>('error');
 
@@ -26,6 +28,34 @@ engine.onError = (e) => showError(e.message);
 
 let facing: Facing = 'environment';
 let started = false;
+
+type WebkitDocument = Document & {
+  webkitFullscreenEnabled?: boolean;
+  webkitFullscreenElement?: Element | null;
+  webkitExitFullscreen?: () => void;
+};
+type WebkitElement = HTMLElement & { webkitRequestFullscreen?: () => void };
+type WebkitVideo = HTMLVideoElement & { webkitEnterFullscreen?: () => void };
+
+const webkitDocument = document as WebkitDocument;
+// iPad, Android, and desktop browsers can fullscreen the whole app, controls included.
+const canFullscreenApp = !!(document.fullscreenEnabled || webkitDocument.webkitFullscreenEnabled);
+// iPhone Safari can only fullscreen <video>, so stream the delayed canvas into one.
+const canFullscreenVideo =
+  !canFullscreenApp &&
+  typeof (fullscreenVideo as WebkitVideo).webkitEnterFullscreen === 'function' &&
+  'captureStream' in HTMLCanvasElement.prototype;
+fullscreenButton.hidden = !canFullscreenApp && !canFullscreenVideo;
+
+function isAppFullscreen(): boolean {
+  return !!(document.fullscreenElement ?? webkitDocument.webkitFullscreenElement);
+}
+
+function startFullscreenVideo(): void {
+  if (!canFullscreenVideo) return;
+  fullscreenVideo.srcObject ??= output.captureStream(30);
+  fullscreenVideo.play().catch(() => {});
+}
 
 function isSupported(): boolean {
   return (
@@ -110,6 +140,7 @@ startButton.addEventListener('click', async () => {
   intro.hidden = true;
   controls.hidden = false;
   engine.start();
+  startFullscreenVideo();
   requestAnimationFrame(renderStatus);
   void keepScreenAwake();
 });
@@ -139,6 +170,7 @@ flipButton.addEventListener('click', async () => {
 
 mirrorButton.addEventListener('click', () => {
   const on = app.classList.toggle('mirrored');
+  engine.mirrored = on;
   mirrorButton.setAttribute('aria-pressed', String(on));
 });
 
@@ -146,6 +178,34 @@ liveButton.addEventListener('click', () => {
   const hidden = live.classList.toggle('live-hidden');
   liveButton.setAttribute('aria-pressed', String(!hidden));
 });
+
+fullscreenButton.addEventListener('click', async () => {
+  try {
+    if (canFullscreenApp) {
+      if (isAppFullscreen()) {
+        await (document.exitFullscreen ? document.exitFullscreen() : webkitDocument.webkitExitFullscreen?.());
+      } else {
+        const el = app as WebkitElement;
+        await (el.requestFullscreen ? el.requestFullscreen() : el.webkitRequestFullscreen?.());
+      }
+    } else {
+      (fullscreenVideo as WebkitVideo).webkitEnterFullscreen!();
+    }
+  } catch {
+    showError(
+      canFullscreenVideo
+        ? 'Fullscreen is available once the delayed video starts playing.'
+        : 'Fullscreen is not available right now.',
+    );
+    setTimeout(clearError, 3000);
+  }
+});
+
+const syncFullscreenButton = () => fullscreenButton.setAttribute('aria-pressed', String(isAppFullscreen()));
+document.addEventListener('fullscreenchange', syncFullscreenButton);
+document.addEventListener('webkitfullscreenchange', syncFullscreenButton);
+// Leaving iOS's native player can pause the video; resume so it's ready next time.
+fullscreenVideo.addEventListener('webkitendfullscreen', () => fullscreenVideo.play().catch(() => {}));
 
 // Tap the video to hide/show controls.
 output.addEventListener('click', () => {
@@ -160,6 +220,7 @@ document.addEventListener('visibilitychange', async () => {
   } else {
     live.play().catch(() => {});
   }
+  if (fullscreenVideo.srcObject) fullscreenVideo.play().catch(() => {});
   void keepScreenAwake();
 });
 

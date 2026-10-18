@@ -17,6 +17,8 @@
     <main id="app">
       <canvas id="output" aria-label="Delayed camera view"></canvas>
       <video id="live" playsinline muted autoplay aria-label="Live camera preview"></video>
+      <!-- Mirrors the canvas so iPhone Safari can show it with its native video fullscreen player. -->
+      <video id="fullscreen-video" playsinline muted aria-hidden="true"></video>
 
       <div id="overlay" hidden>
         <div id="overlay-text"></div>
@@ -46,6 +48,7 @@
           <button id="flip" type="button">Flip camera</button>
           <button id="mirror" type="button" aria-pressed="false">Mirror</button>
           <button id="toggle-live" type="button" aria-pressed="true">Live view</button>
+          <button id="fullscreen" type="button" hidden>Fullscreen</button>
         </div>
         <div id="stats"></div>
       </section>
