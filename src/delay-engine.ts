@@ -7,6 +7,11 @@ const STALL_MS = 150;
 // Ordered by preference; H.264 is hardware-encoded on iPhones.
 const CODECS = ['avc1.42E01F', 'avc1.4D401F', 'avc1.42E028', 'avc1.640028', 'vp8', 'vp09.00.10.08'];
 
+type CaptureContext = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
+type OrientedVideoFrame = VideoFrame & { rotation?: number; flip?: boolean };
+// Browsers exposing VideoFrame.rotation report camera orientation, so frames with none can be encoded directly.
+const ORIENTATION_AWARE = typeof VideoFrame === 'function' && 'rotation' in VideoFrame.prototype;
+
 interface BufferedChunk {
   chunk: EncodedVideoChunk;
   // Set on key frames only.
@@ -37,6 +42,7 @@ export class DelayEngine {
   private lastVideoFrameAt = 0;
   private lastTickAt = 0;
   private readonly ctx: CanvasRenderingContext2D;
+  private captureCtx: CaptureContext | null = null;
 
   private buffer: BufferedChunk[] = [];
   private bufferedBytes = 0;
@@ -144,7 +150,8 @@ export class DelayEngine {
     if (encoder.encodeQueueSize > MAX_ENCODE_QUEUE) return;
 
     const now = performance.now();
-    const frame = new VideoFrame(this.video, { timestamp: Math.round(now * 1000) });
+    const frame = this.grabUprightFrame(width, height, Math.round(now * 1000));
+    if (!frame) return;
     const keyFrame = this.forceKeyFrame || now - this.lastKeyFrameAt >= KEYFRAME_INTERVAL_MS;
     if (keyFrame) {
       this.forceKeyFrame = false;
@@ -157,6 +164,36 @@ export class DelayEngine {
     } finally {
       frame.close();
     }
+  }
+
+  /**
+   * Camera frames can carry rotation as metadata (e.g. iOS in landscape) that
+   * VideoEncoder ignores, which shows up as a rotated/upside-down delayed image.
+   * drawImage() applies that rotation, so route frames through a canvas unless
+   * the browser reports the frame is already upright.
+   */
+  private grabUprightFrame(width: number, height: number, timestamp: number): VideoFrame | null {
+    if (ORIENTATION_AWARE) {
+      const frame = new VideoFrame(this.video, { timestamp }) as OrientedVideoFrame;
+      if (!frame.rotation && !frame.flip) return frame;
+      frame.close();
+    }
+
+    if (!this.captureCtx) {
+      const canvas = typeof OffscreenCanvas === 'function' ? new OffscreenCanvas(width, height) : document.createElement('canvas');
+      this.captureCtx = canvas.getContext('2d', { alpha: false }) as CaptureContext | null;
+      if (!this.captureCtx) {
+        this.reportError(new Error('Canvas 2D is not available'));
+        return null;
+      }
+    }
+    const { canvas } = this.captureCtx;
+    if (canvas.width !== width || canvas.height !== height) {
+      canvas.width = width;
+      canvas.height = height;
+    }
+    this.captureCtx.drawImage(this.video, 0, 0, width, height);
+    return new VideoFrame(canvas, { timestamp });
   }
 
   private async configureEncoder(width: number, height: number): Promise<void> {
