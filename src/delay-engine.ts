@@ -1,6 +1,8 @@
 export const MAX_DELAY_MS = 120_000;
-const RETAIN_MARGIN_MS = 5_000;
+export const CLIP_MS = 15_000;
 const KEYFRAME_INTERVAL_MS = 2_000;
+// Keep enough history behind the oldest delayed frame to clip CLIP_MS from a preceding key frame.
+const RETAIN_MARGIN_MS = CLIP_MS + KEYFRAME_INTERVAL_MS + 1_000;
 const MAX_ENCODE_QUEUE = 2;
 const FALLBACK_INTERVAL_MS = 1000 / 30;
 const STALL_MS = 150;
@@ -16,6 +18,14 @@ interface BufferedChunk {
   chunk: EncodedVideoChunk;
   // Set on key frames only.
   config: VideoDecoderConfig | null;
+}
+
+export interface Clip {
+  /** Starts with a key frame. */
+  chunks: EncodedVideoChunk[];
+  config: VideoDecoderConfig;
+  width: number;
+  height: number;
 }
 
 export interface DelayStatus {
@@ -109,6 +119,38 @@ export class DelayEngine {
       bufferedSeconds: (last - first) / 1e6,
       bufferedBytes: this.bufferedBytes,
       waitingMs,
+    };
+  }
+
+  /** The encoded video for the `durationMs` leading up to the frame currently shown, or null before playback starts. */
+  getClip(durationMs = CLIP_MS): Clip | null {
+    const endUs = this.lastFedTs;
+    if (endUs === null) return null;
+    const startUs = endUs - durationMs * 1000;
+
+    let first = -1;
+    for (let i = 0; i < this.buffer.length; i++) {
+      const { chunk, config } = this.buffer[i];
+      if (chunk.timestamp > endUs) break;
+      if (chunk.type !== 'key' || !config) continue;
+      // Start at the last key frame before the window, but after any resolution/codec change,
+      // since one MP4 track can't hold both.
+      if (first === -1 || chunk.timestamp <= startUs || !sameDecoderConfig(config, this.buffer[first].config!)) {
+        first = i;
+      }
+    }
+    if (first === -1) return null;
+
+    const chunks: EncodedVideoChunk[] = [];
+    for (let i = first; i < this.buffer.length && this.buffer[i].chunk.timestamp <= endUs; i++) {
+      chunks.push(this.buffer[i].chunk);
+    }
+    const config = this.buffer[first].config!;
+    return {
+      chunks,
+      config,
+      width: config.codedWidth ?? this.encoderConfig?.width ?? 0,
+      height: config.codedHeight ?? this.encoderConfig?.height ?? 0,
     };
   }
 
@@ -341,6 +383,8 @@ async function pickEncoderConfig(width: number, height: number): Promise<VideoEn
   const bitrate = Math.round(Math.min(4_000_000, Math.max(1_000_000, width * height * 30 * 0.08)));
   for (const codec of CODECS) {
     const config: VideoEncoderConfig = { codec, width, height, bitrate, framerate: 30, latencyMode: 'realtime' };
+    // The default, but explicit since clips need the avcC description it provides for MP4.
+    if (codec.startsWith('avc1')) config.avc = { format: 'avc' };
     try {
       if ((await VideoEncoder.isConfigSupported(config)).supported) return config;
     } catch {

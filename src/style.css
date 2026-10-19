@@ -89,6 +89,23 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+#timer {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 12px);
+  left: 12px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--panel);
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+#timer.warning {
+  background: #ffb020;
+  color: #000;
+}
+
 #intro {
   position: absolute;
   inset: 0;
@@ -183,6 +200,44 @@ button[aria-pressed='true'] {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+#delay-preset {
+  display: none;
+  font: inherit;
+  color: inherit;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  padding: 8px 14px;
+}
+
+.presets .divider {
+  width: 1px;
+  margin: 6px 4px;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+/* On phones, collapse the preset buttons into a select so the row fits on one line. */
+@media (max-width: 600px) {
+  #delay-preset {
+    display: block;
+  }
+
+  .presets button[data-delay] {
+    display: none;
+  }
+
+  #controls button,
+  #delay-preset {
+    font-size: 0.875rem;
+    padding: 8px 10px;
+  }
+
+  .presets,
+  .actions {
+    gap: 6px;
+  }
 }
 
 .status-row {

@@ -1,8 +1,12 @@
 import './style.css';
 import { cameraIsLive, openCamera, type Facing } from './camera';
 import { DelayEngine, MAX_DELAY_MS } from './delay-engine';
+import { BeepTimer, playBeep, unlockAudio } from './beep-timer';
+import { clipFileName, clipToFile, saveFile } from './clip';
 
 const DELAY_STORAGE_KEY = 'video-delay:seconds';
+const WARNING_STORAGE_KEY = 'video-delay:beep-warning';
+const WARNING_SECONDS = 10;
 
 const byId = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const app = byId<HTMLElement>('app');
@@ -15,16 +19,24 @@ const startButton = byId<HTMLButtonElement>('start');
 const controls = byId<HTMLElement>('controls');
 const delayInput = byId<HTMLInputElement>('delay');
 const delayValue = byId<HTMLOutputElement>('delay-value');
+const delayPreset = byId<HTMLSelectElement>('delay-preset');
 const flipButton = byId<HTMLButtonElement>('flip');
 const mirrorButton = byId<HTMLButtonElement>('mirror');
 const liveButton = byId<HTMLButtonElement>('toggle-live');
 const fullscreenButton = byId<HTMLButtonElement>('fullscreen');
 const fullscreenVideo = byId<HTMLVideoElement>('fullscreen-video');
+const clipButton = byId<HTMLButtonElement>('clip');
 const stats = byId<HTMLDivElement>('stats');
 const errorEl = byId<HTMLParagraphElement>('error');
+const timerEl = byId<HTMLDivElement>('timer');
+const beepTimerButton = byId<HTMLButtonElement>('beep-timer');
+const beepWarningButton = byId<HTMLButtonElement>('beep-warning');
 
 const engine = new DelayEngine(live, output);
 engine.onError = (e) => showError(e.message);
+
+const beepTimer = new BeepTimer();
+beepTimer.onBeep = playBeep;
 
 let facing: Facing = 'environment';
 let started = false;
@@ -96,8 +108,35 @@ function setDelay(seconds: number): void {
   engine.delayMs = clamped * 1000;
   delayInput.value = String(clamped);
   delayValue.textContent = formatSeconds(clamped);
+  const hasPreset = [...delayPreset.options].some((o) => o.value === String(clamped));
+  delayPreset.value = hasPreset ? String(clamped) : '';
   localStorage.setItem(DELAY_STORAGE_KEY, String(clamped));
+  beepTimer.periodMs = clamped * 1000;
+  // Changing the delay restarts the cycle so beeps line up with the new delay.
+  if (beepTimer.running) beepTimer.start();
 }
+
+function setBeepWarning(on: boolean): void {
+  beepTimer.warningMs = on ? WARNING_SECONDS * 1000 : 0;
+  beepWarningButton.setAttribute('aria-pressed', String(on));
+  localStorage.setItem(WARNING_STORAGE_KEY, on ? '1' : '0');
+}
+
+let lastTimerText = '';
+function updateBeepTimer(): void {
+  const remaining = beepTimer.tick();
+  timerEl.hidden = remaining === null;
+  if (remaining === null) return;
+  timerEl.classList.toggle('warning', beepTimer.inWarning(remaining));
+  const text = formatSeconds(Math.ceil(remaining / 1000));
+  if (text !== lastTimerText) {
+    timerEl.textContent = text;
+    lastTimerText = text;
+  }
+}
+
+// setInterval (not requestAnimationFrame) so beeps keep firing while iOS shows the native fullscreen player.
+setInterval(updateBeepTimer, 100);
 
 async function keepScreenAwake(): Promise<void> {
   try {
@@ -113,6 +152,7 @@ function renderStatus(): void {
   const status = engine.getStatus();
 
   overlay.hidden = status.waitingMs === null;
+  clipButton.disabled = status.waitingMs !== null;
   if (status.waitingMs !== null) {
     overlayText.textContent = `Buffering… ${Math.ceil(status.waitingMs / 1000)}s`;
   }
@@ -146,6 +186,7 @@ startButton.addEventListener('click', async () => {
 });
 
 delayInput.addEventListener('input', () => setDelay(Number(delayInput.value)));
+delayPreset.addEventListener('change', () => setDelay(Number(delayPreset.value)));
 
 controls.querySelector('.presets')!.addEventListener('click', (event) => {
   const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-delay]');
@@ -201,6 +242,36 @@ fullscreenButton.addEventListener('click', async () => {
   }
 });
 
+// Kept synchronous up to saveFile() so iOS still treats the share sheet as a response to the tap.
+clipButton.addEventListener('click', () => {
+  const clip = engine.getClip();
+  if (!clip) return;
+  let file: File;
+  try {
+    file = clipToFile(clip, clipFileName());
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e));
+    setTimeout(clearError, 3000);
+    return;
+  }
+  void saveFile(file);
+});
+
+beepTimerButton.addEventListener('click', () => {
+  if (beepTimer.running) {
+    beepTimer.stop();
+  } else {
+    unlockAudio();
+    beepTimer.start();
+  }
+  beepTimerButton.setAttribute('aria-pressed', String(beepTimer.running));
+  updateBeepTimer();
+});
+
+beepWarningButton.addEventListener('click', () => {
+  setBeepWarning(beepWarningButton.getAttribute('aria-pressed') !== 'true');
+});
+
 const syncFullscreenButton = () => fullscreenButton.setAttribute('aria-pressed', String(isAppFullscreen()));
 document.addEventListener('fullscreenchange', syncFullscreenButton);
 document.addEventListener('webkitfullscreenchange', syncFullscreenButton);
@@ -225,6 +296,7 @@ document.addEventListener('visibilitychange', async () => {
 });
 
 setDelay(Number(localStorage.getItem(DELAY_STORAGE_KEY)) || 5);
+setBeepWarning(localStorage.getItem(WARNING_STORAGE_KEY) === '1');
 
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   navigator.serviceWorker

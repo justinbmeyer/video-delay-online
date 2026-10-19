@@ -24,6 +24,8 @@
         <div id="overlay-text"></div>
       </div>
 
+      <div id="timer" role="timer" aria-label="Time until next beep" hidden></div>
+
       <section id="intro">
         <h1>Video Delay</h1>
         <p>Watch yourself on a delay of up to 2 minutes. Prop up your phone, hit start, and review your form.</p>
@@ -38,18 +40,31 @@
           <output id="delay-value" for="delay">5s</output>
         </div>
         <div class="presets">
+          <select id="delay-preset" aria-label="Delay preset">
+            <option value="" disabled>Custom</option>
+            <option value="5">5s</option>
+            <option value="10">10s</option>
+            <option value="30">30s</option>
+            <option value="60">1m</option>
+            <option value="90">1:30</option>
+            <option value="120">2m</option>
+          </select>
           <button type="button" data-delay="5">5s</button>
           <button type="button" data-delay="10">10s</button>
           <button type="button" data-delay="30">30s</button>
           <button type="button" data-delay="60">1m</button>
           <button type="button" data-delay="90">1:30</button>
           <button type="button" data-delay="120">2m</button>
+          <span class="divider" aria-hidden="true"></span>
+          <button id="beep-timer" type="button" aria-pressed="false">Beep timer</button>
+          <button id="beep-warning" type="button" aria-pressed="false">10s warning</button>
         </div>
         <div class="actions">
           <button id="flip" type="button">Flip camera</button>
           <button id="mirror" type="button" aria-pressed="false">Mirror</button>
           <button id="toggle-live" type="button" aria-pressed="true">Live view</button>
           <button id="fullscreen" type="button" hidden>Fullscreen</button>
+          <button id="clip" type="button" disabled title="Save the last 15 seconds of delayed video">Clip</button>
         </div>
         <div class="status-row">
           <div id="stats"></div>

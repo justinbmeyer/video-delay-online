@@ -8,14 +8,18 @@ A web app that shows your camera feed on a delay of up to 2 minutes, so you can 
 
 - Adjustable delay from 1 second to 2 minutes, with presets (5s, 10s, 30s, 1m, 1:30, 2m)
 - Front/back camera flip and mirror mode
+- Beep timer that beeps every delay interval (e.g. every 2 minutes with a 2 minute delay), with an optional 10-second warning beep beforehand (e.g. at 1:50) so you know to switch
 - Optional live preview alongside the delayed view
 - Fullscreen button (on iPhone, the delayed canvas is streamed into a `<video>` so Safari's native video fullscreen can show it)
+- Clip button that saves the 15 seconds leading up to the delayed frame on screen as an MP4 (on phones it opens the share sheet, where iOS offers "Save Video" to Photos; on desktop it downloads)
 - Installable as a PWA with offline support
 - Everything runs locally in the browser; no video is uploaded anywhere
 
 ## How it works
 
 Holding two minutes of raw video in memory is impractical, so frames are compressed on the fly. [`DelayEngine`](src/delay-engine.ts) encodes camera frames with WebCodecs (`VideoEncoder`, preferring hardware H.264) into a rolling buffer of compressed chunks, then decodes them with `VideoDecoder` onto a canvas once they are `delayMs` old.
+
+The buffer keeps an extra ~18 seconds beyond the maximum delay, so a clip can always reach back 15 seconds (plus up to one key-frame interval) from the delayed frame. Clips are made by packing those already-compressed chunks into an MP4 with [`mp4-muxer`](https://github.com/Vanilagy/mp4-muxer), without re-encoding ([`clip.ts`](src/clip.ts)).
 
 ## Requirements
 
