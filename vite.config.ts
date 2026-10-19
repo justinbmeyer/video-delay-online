@@ -23,6 +23,8 @@ function serviceWorker(): Plugin {
         // A new version string per build makes the browser install the updated worker.
         .replace('__VERSION__', String(Date.now()))
         .replace('__PRECACHE__', JSON.stringify(['./', ...files]));
+      // Parse (without running) so a syntax error fails the build instead of silently breaking updates.
+      new Function(source);
       this.emitFile({ type: 'asset', fileName: 'sw.js', source });
     },
   };

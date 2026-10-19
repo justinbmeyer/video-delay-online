@@ -48,4 +48,3 @@ async function networkFirstPage(request) {
     return (await caches.match(key)) ?? Response.error();
   }
 }
-});
